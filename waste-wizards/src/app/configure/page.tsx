@@ -119,7 +119,7 @@ export default function ConfigurePage() {
             <Navbar />
             <div className={`container mx-auto px-4 py-8 flex-1 transition-all duration-1000 ease-in-out ${isLoaded ? 'opacity-100' : 'opacity-0'}`}>
                 <h1 className="text-3xl font-semibold text-blue-900 mb-8 text-center">
-                    Configure Your Waste Wizard Bins
+                    Configure Your Waste Wizard Bins ⚙️
                 </h1>
 
                 <div className="grid md:grid-cols-3 gap-8">
@@ -197,7 +197,7 @@ export default function ConfigurePage() {
                             Available Waste Types
                         </h2>
 
-                        <div className="space-y-4">
+                        <div>
                             {wasteTypes.map((wasteType, index) => (
                                 <div
                                     key={wasteType.id}

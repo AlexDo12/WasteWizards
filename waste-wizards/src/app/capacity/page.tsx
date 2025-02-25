@@ -4,13 +4,6 @@ import Navbar from "@/components/Navbar";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 import { Poppins } from 'next/font/google';
 
-// Initialize the Poppins font
-const poppins = Poppins({
-    subsets: ['latin'],
-    weight: ['400', '500', '600'],
-    display: 'swap',
-});
-
 // Use the environment variable
 const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
@@ -99,10 +92,10 @@ export default function CapacityPage() {
         <div className="flex flex-col min-h-screen bg-white ${poppins.className}">
             <Navbar />
             <div className="container mx-auto p-6">
-                <h1 className={`text-3xl font-semibold text-blue-900 mb-8 
+                <h1 className={`text-3xl font-semibold text-blue-900 mb-8 text-center 
                     opacity-0 transform translate-y-4 transition-all duration-700 ease-out
                     ${isVisible ? 'opacity-100 translate-y-0' : ''}`}>
-                    Bin Capacity Monitoring
+                    Bin Capacity Monitoring 🪣
                 </h1>
 
                 <div className="grid md:grid-cols-2 gap-8">
