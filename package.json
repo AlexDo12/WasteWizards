@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "@neondatabase/serverless": "^0.10.4",
     "axios": "^1.7.9",
     "recharts": "^2.15.1"
   },

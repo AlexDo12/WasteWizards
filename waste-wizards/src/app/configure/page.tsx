@@ -26,11 +26,18 @@ interface Bin {
     icon: string;
 }
 
+interface DbBinConfig {
+    bin_number: number;
+    waste_type: string;
+}
+
+
 const wasteTypes: WasteType[] = [
-    { id: "trash", name: "Trash", color: "#82ab9b", icon: "🗑️" },
+    { id: "trash", name: "Trash", color: "#342c3a", icon: "🗑️" },
+    { id: "recyclables", name: "Recyclables", color: "#7385c8", icon: "♻️" },
     { id: "paper", name: "Paper", color: "#829fab", icon: "📄" },
-    { id: "plastic", name: "Plastic", color: "#83a2c6", icon: "🧴" },
-    { id: "glass", name: "Glass", color: "#83c6ae", icon: "🍶" },
+    { id: "plastic", name: "Plastic", color: "#83a2c6", icon: "🛍️" },
+    { id: "glass", name: "Glass", color: "#83c6ae", icon: "🍷" },
     { id: "metal", name: "Metal", color: "#83B8C6", icon: "🥫" },
     { id: "compost", name: "Compost", color: "#8cc683", icon: "🍃" },
     { id: "electronics", name: "E-Waste", color: "#8389c6", icon: "📱" },
@@ -40,15 +47,21 @@ export default function ConfigurePage() {
     // State for page load animation
     const [isLoaded, setIsLoaded] = useState(false);
 
-    // Initial bin configuration
-    const initialBins: Bin[] = [
+    // Loading state
+    const [isLoading, setIsLoading] = useState(true);
+
+    // Default bin configuration (fallback if database fetch fails)
+    const defaultBins: Bin[] = [
         { id: 1, type: "trash", name: "Trash", color: "#82ab9b", icon: "🗑️" },
         { id: 2, type: "plastic", name: "Plastic", color: "#83a2c6", icon: "🧴" },
         { id: 3, type: "compost", name: "Compost", color: "#8cc683", icon: "🍃" },
     ];
 
     // State for the three bins
-    const [bins, setBins] = useState<Bin[]>(initialBins);
+    const [bins, setBins] = useState<Bin[]>(defaultBins);
+
+    // State to store the initial bins after fetching from database
+    const [initialBins, setInitialBins] = useState<Bin[]>(defaultBins);
 
     // State to track if configuration has changed
     const [hasChanges, setHasChanges] = useState(false);
@@ -59,8 +72,72 @@ export default function ConfigurePage() {
     // State for tracking if the confirmation is successful
     const [confirmed, setConfirmed] = useState(false);
 
-    // Trigger page load animation after component mounts
+    // Function to find a waste type by ID
+    const getWasteTypeById = (id: string): WasteType => {
+        return wasteTypes.find(type => type.id === id) ||
+            { id: "unknown", name: "Unknown", color: "#cccccc", icon: "❓" };
+    };
+
+
+    // Fetch bin configurations from the database on component mount
     useEffect(() => {
+        const fetchBinConfigurations = async () => {
+            setIsLoading(true);
+            try {
+                const response = await fetch('/api/bin-configurations');
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch bin configurations');
+                }
+
+                const data: DbBinConfig[] = await response.json();
+                // If we have data, map it to our Bin format
+                if (data && data.length > 0) {
+                    const fetchedBins = data.map(item => {
+                        const wasteType = getWasteTypeById(item.waste_type);
+                        return {
+                            id: item.bin_number,
+                            type: item.waste_type,
+                            name: wasteType.name,
+                            color: wasteType.color,
+                            icon: wasteType.icon
+                        };
+                    });
+
+                    // Ensure we have all 3 bins
+                    const completeBins = [...fetchedBins];
+
+                    // Add any missing bins with default values
+                    for (let i = 1; i <= 3; i++) {
+                        if (!completeBins.find(bin => bin.id === i)) {
+                            const defaultBin = defaultBins.find(bin => bin.id === i);
+                            if (defaultBin) {
+                                completeBins.push(defaultBin);
+                            }
+                        }
+                    }
+
+                    // Sort by bin number
+                    completeBins.sort((a, b) => a.id - b.id);
+
+                    // Update both bins and initialBins
+                    setBins(completeBins);
+                    setInitialBins(completeBins);
+                }
+            } catch (error) {
+                console.error('Error fetching bin configurations:', error);
+                // Use default values if fetch fails
+                setBins(defaultBins);
+                setInitialBins(defaultBins);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+
+        fetchBinConfigurations();
+
+        // Trigger page load animation after a slight delay
         const timer = setTimeout(() => {
             setIsLoaded(true);
         }, 100);
@@ -72,7 +149,7 @@ export default function ConfigurePage() {
     useEffect(() => {
         const configChanged = JSON.stringify(bins) !== JSON.stringify(initialBins);
         setHasChanges(configChanged);
-    }, [bins]);
+    }, [bins, initialBins]);
 
     // Select a bin to configure
     const handleBinSelect = (binId: number) => {
@@ -101,18 +178,44 @@ export default function ConfigurePage() {
         }
     };
 
-    // Confirm configuration
-    const handleConfirm = () => {
-        // In a real app, you would send this configuration to your backend
-        console.log("Configuration confirmed:", bins);
-        setConfirmed(true);
+    // Confirm configuration and save to database
+    // Confirm configuration and save to database
+    const handleConfirm = async () => {
+        try {
+            // Create an array of configuration objects to send to the API
+            const configsToSave = bins.map(bin => ({
+                bin_number: bin.id,
+                waste_type: bin.type
+            }));
 
-        // Show confirmation message briefly
-        setTimeout(() => {
-            setConfirmed(false);
-        }, 3000);
+            // Send the configurations to the API
+            const response = await fetch('/api/bin-configurations', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(configsToSave),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to update bin configurations');
+            }
+
+            // Update initialBins to match current bins
+            setInitialBins([...bins]);
+
+            // Show success message
+            setConfirmed(true);
+
+            // Hide success message after a delay
+            setTimeout(() => {
+                setConfirmed(false);
+            }, 3000);
+        } catch (error) {
+            console.error('Error saving bin configurations:', error);
+            alert('Failed to save configuration. Please try again.');
+        }
     };
-
 
     return (
         <div className={`flex flex-col min-h-screen bg-white ${poppins.className}`}>
@@ -128,34 +231,45 @@ export default function ConfigurePage() {
                         <div className="bg-green-50 rounded-xl shadow-lg p-6 w-full transform transition-all duration-500 hover:shadow-xl">
                             <h2 className="text-2xl text-blue-900 mb-6 text-center">Current Configuration</h2>
 
-                            {/* Three bins in a row */}
-                            <div className="flex flex-wrap justify-center gap-8 mb-8">
-                                {bins.map((bin, index) => (
-                                    <div
-                                        key={bin.id}
-                                        onClick={() => handleBinSelect(bin.id)}
-                                        className={`
-                                          w-44 h-44 rounded-full flex flex-col items-center justify-center cursor-pointer
-                                          transition-all duration-300 shadow-md border-2 border-white
-                                          ${selectedBin === bin.id ? 'ring-4 ring-blue-500 ring-opacity-70 scale-105' : 'hover:shadow-lg hover:scale-105'}
-                                        `}
-                                        style={{
-                                            backgroundColor: bin.color,
-                                            animationDelay: `${index * 200 + 300}ms`,
-                                            animation: isLoaded ? 'fadeInUp 0.6s ease-out forwards' : 'none'
-                                        }}
-                                    >
-                                        <span className="text-5xl mb-3 transition-transform duration-300 group-hover:scale-110">{bin.icon}</span>
-                                        <span className="text-white text-lg font-medium text-center px-2">
-                                            Bin {bin.id}: {bin.name}
-                                        </span>
-                                    </div>
-                                ))}
-                            </div>
+                            {/* Loading state */}
+                            {isLoading ? (
+                                <div className="flex justify-center items-center py-16">
+                                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-900"></div>
+                                </div>
+                            ) : (
+                                /* Three bins in a row */
+                                <div className="flex flex-wrap justify-center gap-8 mb-8">
+                                    {bins.map((bin, index) => (
+                                        <div
+                                            key={bin.id}
+                                            onClick={() => handleBinSelect(bin.id)}
+                                            className={`
+                                              w-44 h-44 rounded-full flex flex-col items-center justify-center cursor-pointer
+                                              transition-all duration-300 shadow-md border-2 border-white
+                                              ${selectedBin === bin.id ? 'ring-4 ring-blue-500 ring-opacity-70 scale-105' : 'hover:shadow-lg hover:scale-105'}
+                                            `}
+                                            style={{
+                                                backgroundColor: bin.color,
+                                                animationDelay: `${index * 200 + 300}ms`,
+                                                animation: isLoaded ? 'fadeInUp 0.6s ease-out forwards' : 'none'
+                                            }}
+                                        >
+                                            <span className="text-5xl mb-3 transition-transform duration-300 group-hover:scale-110">{bin.icon}</span>
+                                            <span className="text-white text-lg font-medium text-center px-2">
+                                                Bin {bin.id}: {bin.name}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
 
                             {/* Status Message */}
                             <div className="text-center mb-6 min-h-[2rem] transition-all duration-300">
-                                {selectedBin !== null ? (
+                                {isLoading ? (
+                                    <p className="text-lg text-blue-800">
+                                        Loading bin configurations...
+                                    </p>
+                                ) : selectedBin !== null ? (
                                     <p className="text-lg text-blue-800 animate-fadeIn">
                                         Select a waste type for Bin {selectedBin} from the sidebar
                                     </p>
@@ -178,10 +292,10 @@ export default function ConfigurePage() {
                             <div className="flex justify-center">
                                 <button
                                     onClick={handleConfirm}
-                                    disabled={!hasChanges}
+                                    disabled={!hasChanges || isLoading}
                                     className={`px-6 py-3 rounded-lg text-white font-medium transition-all duration-300
                                       transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50
-                                      ${!hasChanges
+                                      ${!hasChanges || isLoading
                                             ? 'bg-gray-400 cursor-not-allowed'
                                             : 'bg-green-500 hover:bg-green-600 hover:shadow-md'}`}
                                 >
