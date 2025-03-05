@@ -7,9 +7,9 @@ const sql = neon(process.env.DATABASE_URL!);
 
 export async function GET() {
   try {
-    // Get all bin configurations
+    // Get all bin configurations including capacity
     const results = await sql`
-      SELECT bin_number, waste_type 
+      SELECT bin_number, waste_type, capacity 
       FROM bin_configurations 
       ORDER BY bin_number
     `;
@@ -27,12 +27,14 @@ export async function POST(request: Request) {
 
     // Process each configuration
     for (const config of data) {
-      // Use the Neon SQL tagged template syntax for parameterized queries
+      // Add capacity to the insert/update query
       await sql`
-        INSERT INTO bin_configurations (bin_number, waste_type) 
-        VALUES (${config.bin_number}, ${config.waste_type})
+        INSERT INTO bin_configurations (bin_number, waste_type, capacity) 
+        VALUES (${config.bin_number}, ${config.waste_type}, ${config.capacity || 0})
         ON CONFLICT (bin_number) 
-        DO UPDATE SET waste_type = ${config.waste_type}
+        DO UPDATE SET 
+          waste_type = ${config.waste_type},
+          capacity = ${config.capacity || 0}
       `;
     }
 

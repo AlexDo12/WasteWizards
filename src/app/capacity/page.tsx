@@ -14,8 +14,26 @@ const poppins = Poppins({
 // Use the environment variable
 const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
-export default function CapacityPage() {
+// Define types for bin configurations
+interface BinConfig {
+    bin_number: number;
+    waste_type: string;
+    capacity: number;
+}
 
+// Define a mapping of waste_type to display name and color
+const wasteTypeMap: Record<string, { name: string, fill: string }> = {
+    'trash': { name: 'Trash', fill: '#6b7280' },
+    'recyclables': { name: 'Recyclables', fill: '#3b82f6' },
+    'compost': { name: 'Compost', fill: '#10b981' },
+    'plastic': { name: 'Plastic', fill: '#83a2c6' },
+    'paper': { name: 'Paper', fill: '#829fab' },
+    'glass': { name: 'Glass', fill: '#83c6ae' },
+    'metal': { name: 'Metal', fill: '#83B8C6' },
+    'electronics': { name: 'E-Waste', fill: '#8389c6' }
+};
+
+export default function CapacityPage() {
     // Define types for your state
     interface BinData {
         name: string;
@@ -30,12 +48,11 @@ export default function CapacityPage() {
         address: string;
     }
 
-    // Use the types in your state declarations
-    const [binData, setBinData] = useState<BinData[]>([
-        { name: 'Trash', capacity: 82, fill: '#6b7280' },
-        { name: 'Recyclables', capacity: 45, fill: '#3b82f6' },
-        { name: 'Compost', capacity: 30, fill: '#10b981' },
-    ]);
+    // State for bin data
+    const [binData, setBinData] = useState<BinData[]>([]);
+
+    // Loading state
+    const [isLoading, setIsLoading] = useState(true);
 
     const [location, setLocation] = useState<LocationData>({
         latitude: 30.615011,
@@ -46,6 +63,52 @@ export default function CapacityPage() {
 
     const [mounted, setMounted] = useState(false);
     const [isVisible, setIsVisible] = useState(false);
+
+    // Fetch bin configurations from API
+    useEffect(() => {
+        const fetchBinConfigurations = async () => {
+            setIsLoading(true);
+            try {
+                const response = await fetch('/api/bin-configurations');
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch bin configurations');
+                }
+
+                const data: BinConfig[] = await response.json();
+
+                // Transform the data for the chart
+                const chartData = data.map(config => {
+                    const typeInfo = wasteTypeMap[config.waste_type] ||
+                        { name: config.waste_type.charAt(0).toUpperCase() + config.waste_type.slice(1), fill: '#cccccc' };
+
+                    return {
+                        name: typeInfo.name,
+                        capacity: config.capacity || 0,
+                        fill: typeInfo.fill,
+                        bin_number: config.bin_number
+                    };
+                });
+
+                // Sort by bin number
+                chartData.sort((a, b) => a.bin_number - b.bin_number);
+
+                setBinData(chartData);
+            } catch (error) {
+                console.error('Error fetching bin configurations:', error);
+                // Set default data if fetch fails
+                setBinData([
+                    { name: 'Trash', capacity: 82, fill: '#6b7280' },
+                    { name: 'Recyclables', capacity: 45, fill: '#3b82f6' },
+                    { name: 'Compost', capacity: 30, fill: '#10b981' },
+                ]);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchBinConfigurations();
+    }, []);
 
     // Fetch address from coordinates
     const fetchAddress = async (lat: number, lng: number) => {
@@ -112,61 +175,70 @@ export default function CapacityPage() {
                         ${isVisible ? 'opacity-100 translate-x-0' : ''}`}>
                         <h2 className="text-2xl text-blue-900 mb-6">Current Fill Levels</h2>
 
-                        <div className="h-80">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart
-                                    data={binData}
-                                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                                >
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis dataKey="name" />
-                                    <YAxis label={{ value: 'Capacity %', angle: -90, position: 'insideLeft' }} domain={[0, 100]} />
-                                    <Tooltip
-                                        formatter={(value, name, props) => [`${value}%`, 'Fill Level']}
-                                        labelFormatter={(label) => {
-                                            const bin = binData.find(b => b.name === label);
-                                            return `${label}`;
-                                        }}
-                                    />
-                                    <Legend />
-                                    <Bar
-                                        dataKey="capacity"
-                                        name="Fill Level"
-                                        fill="#8884d8"  // Use a default color here
-                                        radius={[4, 4, 0, 0]}
-                                    />
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </div>
-
-                        <div className="mt-6 space-y-4">
-                            {binData.map((bin, index) => (
-                                <div
-                                    key={bin.name}
-                                    className={`flex items-center justify-between
-                                        opacity-0 transform translate-x-[-20px] transition-all duration-700 ease-out
-                                        ${isVisible ? 'opacity-100 translate-x-0' : ''}`}
-                                    style={{ transitionDelay: `${300 + index * 100}ms` }}
-                                >
-                                    <div className="flex items-center">
-                                        <div className="w-4 h-4 rounded-full mr-2 ml-2" style={{ backgroundColor: bin.fill }}></div>
-                                        <span className="font-medium">{bin.name}:</span>
-                                    </div>
-                                    <div className="w-64 bg-gray-200 rounded-full h-2.5">
-                                        <div
-                                            className="h-2.5 rounded-full pz-8"
-                                            style={{
-                                                width: `${bin.capacity}%`,
-                                                backgroundColor: bin.fill,
-                                            }}
-                                        ></div>
-                                    </div>
-                                    <span className={`ml-2 ${bin.capacity > 80 ? 'text-red-600 font-semibold' : 'text-gray-700'}`}>
-                                        {bin.capacity}%
-                                    </span>
+                        {isLoading ? (
+                            <div className="flex justify-center items-center py-16">
+                                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-900"></div>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="h-80">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart
+                                            data={binData}
+                                            margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                                        >
+                                            <CartesianGrid strokeDasharray="3 3" />
+                                            <XAxis dataKey="name" />
+                                            <YAxis label={{ value: 'Capacity %', angle: -90, position: 'insideLeft' }} domain={[0, 100]} />
+                                            <Tooltip
+                                                formatter={(value, name, props) => [`${value}%`, 'Fill Level']}
+                                                labelFormatter={(label) => {
+                                                    return `${label}`;
+                                                }}
+                                            />
+                                            <Legend />
+                                            <Bar
+                                                dataKey="capacity"
+                                                name="Fill Level"
+                                            >
+                                                {binData.map((entry, index) => (
+                                                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                                                ))}
+                                            </Bar>
+                                        </BarChart>
+                                    </ResponsiveContainer>
                                 </div>
-                            ))}
-                        </div>
+
+                                <div className="mt-6 space-y-4">
+                                    {binData.map((bin, index) => (
+                                        <div
+                                            key={bin.name + index}
+                                            className={`flex items-center justify-between
+                                                opacity-0 transform translate-x-[-20px] transition-all duration-700 ease-out
+                                                ${isVisible ? 'opacity-100 translate-x-0' : ''}`}
+                                            style={{ transitionDelay: `${300 + index * 100}ms` }}
+                                        >
+                                            <div className="flex items-center">
+                                                <div className="w-4 h-4 rounded-full mr-2 ml-2" style={{ backgroundColor: bin.fill }}></div>
+                                                <span className="font-medium">{bin.name}:</span>
+                                            </div>
+                                            <div className="w-64 bg-gray-200 rounded-full h-2.5">
+                                                <div
+                                                    className="h-2.5 rounded-full pz-8"
+                                                    style={{
+                                                        width: `${bin.capacity}%`,
+                                                        backgroundColor: bin.fill,
+                                                    }}
+                                                ></div>
+                                            </div>
+                                            <span className={`ml-2 ${bin.capacity > 80 ? 'text-red-600 font-semibold' : 'text-gray-700'}`}>
+                                                {bin.capacity}%
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </>
+                        )}
                     </div>
 
                     {/* Right Column - Map Location */}
@@ -227,7 +299,8 @@ export default function CapacityPage() {
                                         <p className="text-gray-700">{location.lastUpdated}</p>
                                     ) : (
                                         <p className="text-gray-700">Loading time...</p>
-                                    )}                                </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>
