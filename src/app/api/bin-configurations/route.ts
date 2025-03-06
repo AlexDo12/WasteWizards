@@ -27,15 +27,38 @@ export async function POST(request: Request) {
 
     // Process each configuration
     for (const config of data) {
-      // Add capacity to the insert/update query
-      await sql`
-        INSERT INTO bin_configurations (bin_number, waste_type, capacity) 
-        VALUES (${config.bin_number}, ${config.waste_type}, ${config.capacity || 0})
-        ON CONFLICT (bin_number) 
-        DO UPDATE SET 
-          waste_type = ${config.waste_type},
-          capacity = ${config.capacity || 0}
+      // Get current bin configuration to verify if we should update
+      const currentBin = await sql`
+        SELECT * FROM bin_configurations WHERE bin_number = ${config.bin_number}
       `;
+
+      // First bin's waste type should never change
+      if (config.bin_number === 1 && currentBin.length > 0) {
+        // Only update capacity for bin 1, keep waste_type the same
+        await sql`
+          UPDATE bin_configurations 
+          SET capacity = ${config.capacity || 0}
+          WHERE bin_number = 1
+        `;
+      }
+      // For other bins, only allow update if capacity < 5.00
+      else if (config.bin_number !== 1 && (currentBin.length === 0 || currentBin[0].capacity < 5.00)) {
+        await sql`
+          INSERT INTO bin_configurations (bin_number, waste_type, capacity) 
+          VALUES (${config.bin_number}, ${config.waste_type}, ${config.capacity || 0})
+          ON CONFLICT (bin_number) 
+          DO UPDATE SET 
+            waste_type = ${config.waste_type},
+            capacity = ${config.capacity || 0}
+        `;
+      }
+      // If it's a new bin 1 configuration (should be rare but handling it)
+      else if (config.bin_number === 1 && currentBin.length === 0) {
+        await sql`
+          INSERT INTO bin_configurations (bin_number, waste_type, capacity) 
+          VALUES (${config.bin_number}, ${config.waste_type}, ${config.capacity || 0})
+        `;
+      }
     }
 
     return NextResponse.json({ success: true });

@@ -24,13 +24,14 @@ interface Bin {
     name: string;
     color: string;
     icon: string;
+    capacity: number;
 }
 
 interface DbBinConfig {
     bin_number: number;
     waste_type: string;
+    capacity: number;
 }
-
 
 const wasteTypes: WasteType[] = [
     { id: "trash", name: "Trash", color: "#342c3a", icon: "🗑️" },
@@ -52,9 +53,9 @@ export default function ConfigurePage() {
 
     // Default bin configuration (fallback if database fetch fails)
     const defaultBins: Bin[] = [
-        { id: 1, type: "trash", name: "Trash", color: "#82ab9b", icon: "🗑️" },
-        { id: 2, type: "plastic", name: "Plastic", color: "#83a2c6", icon: "🧴" },
-        { id: 3, type: "compost", name: "Compost", color: "#8cc683", icon: "🍃" },
+        { id: 1, type: "trash", name: "Trash", color: "#82ab9b", icon: "🗑️", capacity: 0 },
+        { id: 2, type: "plastic", name: "Plastic", color: "#83a2c6", icon: "🧴", capacity: 0 },
+        { id: 3, type: "compost", name: "Compost", color: "#8cc683", icon: "🍃", capacity: 0 },
     ];
 
     // State for the three bins
@@ -78,7 +79,6 @@ export default function ConfigurePage() {
             { id: "unknown", name: "Unknown", color: "#cccccc", icon: "❓" };
     };
 
-
     // Fetch bin configurations from the database on component mount
     useEffect(() => {
         const fetchBinConfigurations = async () => {
@@ -100,7 +100,8 @@ export default function ConfigurePage() {
                             type: item.waste_type,
                             name: wasteType.name,
                             color: wasteType.color,
-                            icon: wasteType.icon
+                            icon: wasteType.icon,
+                            capacity: item.capacity || 0
                         };
                     });
 
@@ -134,7 +135,6 @@ export default function ConfigurePage() {
             }
         };
 
-
         fetchBinConfigurations();
 
         // Trigger page load animation after a slight delay
@@ -151,9 +151,24 @@ export default function ConfigurePage() {
         setHasChanges(configChanged);
     }, [bins, initialBins]);
 
+    // Determine if a bin is configurable (first bin is not configurable, others only if capacity < 5.00)
+    const isBinConfigurable = (bin: Bin) => {
+        if (bin.id === 1) return false; // First bin is never configurable
+        return bin.capacity < 5.00; // Other bins only if capacity is below 5.00
+    };
+
+    // Get message for bin status
+    const getBinStatusMessage = (bin: Bin) => {
+        if (bin.id === 1) return "Primary bin (not configurable)";
+        if (bin.capacity >= 5.00) return "Please empty bin before reconfiguring";
+        return "Click to configure";
+    };
+
     // Select a bin to configure
-    const handleBinSelect = (binId: number) => {
-        setSelectedBin(binId);
+    const handleBinSelect = (bin: Bin) => {
+        if (!isBinConfigurable(bin)) return; // Don't allow selection if not configurable
+
+        setSelectedBin(bin.id);
         setConfirmed(false);
     };
 
@@ -179,13 +194,13 @@ export default function ConfigurePage() {
     };
 
     // Confirm configuration and save to database
-    // Confirm configuration and save to database
     const handleConfirm = async () => {
         try {
             // Create an array of configuration objects to send to the API
             const configsToSave = bins.map(bin => ({
                 bin_number: bin.id,
-                waste_type: bin.type
+                waste_type: bin.type,
+                capacity: bin.capacity
             }));
 
             // Send the configurations to the API
@@ -238,28 +253,49 @@ export default function ConfigurePage() {
                                 </div>
                             ) : (
                                 /* Three bins in a row */
-                                <div className="flex flex-wrap justify-center gap-8 mb-8">
-                                    {bins.map((bin, index) => (
-                                        <div
-                                            key={bin.id}
-                                            onClick={() => handleBinSelect(bin.id)}
-                                            className={`
-                                              w-44 h-44 rounded-full flex flex-col items-center justify-center cursor-pointer
-                                              transition-all duration-300 shadow-md border-2 border-white
-                                              ${selectedBin === bin.id ? 'ring-4 ring-blue-500 ring-opacity-70 scale-105' : 'hover:shadow-lg hover:scale-105'}
-                                            `}
-                                            style={{
-                                                backgroundColor: bin.color,
-                                                animationDelay: `${index * 200 + 300}ms`,
-                                                animation: isLoaded ? 'fadeInUp 0.6s ease-out forwards' : 'none'
-                                            }}
-                                        >
-                                            <span className="text-5xl mb-3 transition-transform duration-300 group-hover:scale-110">{bin.icon}</span>
-                                            <span className="text-white text-lg font-medium text-center px-2">
-                                                Bin {bin.id}: {bin.name}
-                                            </span>
-                                        </div>
-                                    ))}
+                                <div className="flex flex-wrap justify-center gap-8 mb-4">
+                                    {bins.map((bin, index) => {
+                                        const configurable = isBinConfigurable(bin);
+                                        const statusMessage = getBinStatusMessage(bin);
+
+                                        return (
+                                            <div key={bin.id} className="flex flex-col items-center">
+                                                <div
+                                                    onClick={() => configurable && handleBinSelect(bin)}
+                                                    className={`
+                                                      relative w-44 h-44 rounded-full flex flex-col items-center justify-center
+                                                      transition-all duration-300 shadow-md border-2 border-white
+                                                      ${selectedBin === bin.id ? 'ring-4 ring-blue-500 ring-opacity-70 scale-105' : ''}
+                                                      ${configurable ? 'cursor-pointer hover:shadow-lg hover:scale-105' : 'cursor-default opacity-90'}
+                                                    `}
+                                                    style={{
+                                                        backgroundColor: bin.color,
+                                                        animationDelay: `${index * 200 + 300}ms`,
+                                                        animation: isLoaded ? 'fadeInUp 0.6s ease-out forwards' : 'none'
+                                                    }}
+                                                >
+                                                    <span className="text-5xl mb-2">{bin.icon}</span>
+                                                    <span className="text-white text-lg font-medium text-center px-2 mb-1">
+                                                        Bin {bin.id}: {bin.name}
+                                                    </span>
+                                                    <div className="absolute top-3 right-3 bg-green-100 text-blue-900 text-xs py-1 px-2 rounded-full font-medium border border-green-200">
+                                                        {bin.capacity.toFixed(2)}
+                                                    </div>
+                                                </div>
+                                                {/* Status message below the bin instead of overlapping */}
+                                                <div className="mt-2 text-center">
+                                                    <span className={`inline-block text-xs py-1 px-3 rounded-full font-medium ${bin.id === 1
+                                                        ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                                                        : bin.capacity >= 5.00
+                                                            ? 'bg-red-100 text-red-700 border border-red-200'
+                                                            : 'bg-green-100 text-green-700 border border-green-200'
+                                                        }`}>
+                                                        {statusMessage}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             )}
 
@@ -283,7 +319,7 @@ export default function ConfigurePage() {
                                     </p>
                                 ) : (
                                     <p className="text-lg font-light text-blue-800">
-                                        Click on a bin to configure its waste type
+                                        Bin 1 is not configurable. Other bins can be configured if their capacity is below 5.00.
                                     </p>
                                 )}
                             </div>
