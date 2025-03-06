@@ -55,8 +55,8 @@ export default function CapacityPage() {
     const [isLoading, setIsLoading] = useState(true);
 
     const [location, setLocation] = useState<LocationData>({
-        latitude: 30.615011,
-        longitude: -96.342476,
+        latitude: 30.615401690061503,
+        longitude: -96.33726707957139,
         lastUpdated: new Date().toLocaleString(),
         address: 'Loading address...'
     });
