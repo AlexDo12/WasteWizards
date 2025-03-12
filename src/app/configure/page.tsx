@@ -279,7 +279,7 @@ export default function ConfigurePage() {
                                                         Bin {bin.id}: {bin.name}
                                                     </span>
                                                     <div className="absolute top-3 right-3 bg-green-100 text-blue-900 text-xs py-1 px-2 rounded-full font-medium border border-green-200">
-                                                        {bin.capacity.toFixed(2)}
+                                                        {bin.capacity.toFixed(2)}%
                                                     </div>
                                                 </div>
                                                 {/* Status message below the bin instead of overlapping */}
