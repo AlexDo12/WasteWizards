@@ -20,17 +20,19 @@ interface WasteType {
 
 interface Bin {
     id: number;
+    trashcan: number;
     type: string;
     name: string;
     color: string;
     icon: string;
-    capacity: number;
+    fillLevel: number;
 }
 
 interface DbBinConfig {
+    trashcan: number;
     bin_number: number;
     waste_type: string;
-    capacity: number;
+    fill_level: number;
 }
 
 const wasteTypes: WasteType[] = [
@@ -53,9 +55,9 @@ export default function ConfigurePage() {
 
     // Default bin configuration (fallback if database fetch fails)
     const defaultBins: Bin[] = [
-        { id: 1, type: "trash", name: "Trash", color: "#82ab9b", icon: "🗑️", capacity: 0 },
-        { id: 2, type: "plastic", name: "Plastic", color: "#83a2c6", icon: "🧴", capacity: 0 },
-        { id: 3, type: "compost", name: "Compost", color: "#8cc683", icon: "🍃", capacity: 0 },
+        { id: 1, trashcan: 1, type: "trash", name: "Trash", color: "#82ab9b", icon: "🗑️", fillLevel: 0 },
+        { id: 2, trashcan: 1, type: "plastic", name: "Plastic", color: "#83a2c6", icon: "🧴", fillLevel: 0 },
+        { id: 3, trashcan: 1, type: "compost", name: "Compost", color: "#8cc683", icon: "🍃", fillLevel: 0 },
     ];
 
     // State for the three bins
@@ -84,7 +86,8 @@ export default function ConfigurePage() {
         const fetchBinConfigurations = async () => {
             setIsLoading(true);
             try {
-                const response = await fetch('/api/bin-configurations');
+                // Hardcode trashcan to 1
+                const response = await fetch('/api/bin-configurations?trashcan=1');
 
                 if (!response.ok) {
                     throw new Error('Failed to fetch bin configurations');
@@ -97,11 +100,12 @@ export default function ConfigurePage() {
                         const wasteType = getWasteTypeById(item.waste_type);
                         return {
                             id: item.bin_number,
+                            trashcan: item.trashcan,
                             type: item.waste_type,
                             name: wasteType.name,
                             color: wasteType.color,
                             icon: wasteType.icon,
-                            capacity: item.capacity || 0
+                            fillLevel: item.fill_level * 100 || 0 // Convert to percentage
                         };
                     });
 
@@ -151,16 +155,16 @@ export default function ConfigurePage() {
         setHasChanges(configChanged);
     }, [bins, initialBins]);
 
-    // Determine if a bin is configurable (first bin is not configurable, others only if capacity < 5.00)
+    // Determine if a bin is configurable (first bin is not configurable, others only if fill_level < 5.00)
     const isBinConfigurable = (bin: Bin) => {
         if (bin.id === 1) return false; // First bin is never configurable
-        return bin.capacity < 5.00; // Other bins only if capacity is below 5.00
+        return bin.fillLevel < 5.00; // Other bins only if fill_level is below 5.00
     };
 
     // Get message for bin status
     const getBinStatusMessage = (bin: Bin) => {
         if (bin.id === 1) return "Primary bin (not configurable)";
-        if (bin.capacity >= 5.00) return "Please empty bin before reconfiguring";
+        if (bin.fillLevel >= 5.00) return "Please empty bin before reconfiguring";
         return "Click to configure";
     };
 
@@ -198,9 +202,10 @@ export default function ConfigurePage() {
         try {
             // Create an array of configuration objects to send to the API
             const configsToSave = bins.map(bin => ({
+                trashcan: 1, // Hardcoded to trashcan 1
                 bin_number: bin.id,
                 waste_type: bin.type,
-                capacity: bin.capacity
+                fill_level: bin.fillLevel / 100 // Convert percentage back to decimal
             }));
 
             // Send the configurations to the API
@@ -279,14 +284,14 @@ export default function ConfigurePage() {
                                                         Bin {bin.id}: {bin.name}
                                                     </span>
                                                     <div className="absolute top-3 right-3 bg-green-100 text-blue-900 text-xs py-1 px-2 rounded-full font-medium border border-green-200">
-                                                        {bin.capacity.toFixed(2)}%
+                                                        {bin.fillLevel.toFixed(2)}%
                                                     </div>
                                                 </div>
                                                 {/* Status message below the bin instead of overlapping */}
                                                 <div className="mt-2 text-center">
                                                     <span className={`inline-block text-xs py-1 px-3 rounded-full font-medium ${bin.id === 1
                                                         ? 'bg-blue-100 text-blue-800 border border-blue-200'
-                                                        : bin.capacity >= 5.00
+                                                        : bin.fillLevel >= 5.00
                                                             ? 'bg-red-100 text-red-700 border border-red-200'
                                                             : 'bg-green-100 text-green-700 border border-green-200'
                                                         }`}>
@@ -319,7 +324,7 @@ export default function ConfigurePage() {
                                     </p>
                                 ) : (
                                     <p className="text-lg font-light text-blue-800">
-                                        Bin 1 is not configurable. Other bins can be configured if their capacity is below 5.00.
+                                        Bin 1 is not configurable. Other bins can be configured if their fill level is below 5.00%.
                                     </p>
                                 )}
                             </div>

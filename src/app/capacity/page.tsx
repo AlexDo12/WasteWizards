@@ -16,9 +16,10 @@ const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
 // Define types for bin configurations
 interface BinConfig {
+    trashcan: number;
     bin_number: number;
     waste_type: string;
-    capacity: number;
+    fill_level: number;
 }
 
 // Define a mapping of waste_type to display name and color
@@ -37,7 +38,7 @@ export default function CapacityPage() {
     // Define types for your state
     interface BinData {
         name: string;
-        capacity: number;
+        fillLevel: number;
         fill: string;
     }
 
@@ -69,7 +70,8 @@ export default function CapacityPage() {
         const fetchBinConfigurations = async () => {
             setIsLoading(true);
             try {
-                const response = await fetch('/api/bin-configurations');
+                // Use the new API endpoint with hardcoded trashcan=1
+                const response = await fetch('/api/bin-configurations?trashcan=1');
 
                 if (!response.ok) {
                     throw new Error('Failed to fetch bin configurations');
@@ -84,7 +86,7 @@ export default function CapacityPage() {
 
                     return {
                         name: typeInfo.name,
-                        capacity: config.capacity || 0,
+                        fillLevel: config.fill_level * 100 || 0, // Convert to percentage
                         fill: typeInfo.fill,
                         bin_number: config.bin_number
                     };
@@ -98,9 +100,9 @@ export default function CapacityPage() {
                 console.error('Error fetching bin configurations:', error);
                 // Set default data if fetch fails
                 setBinData([
-                    { name: 'Trash', capacity: 82, fill: '#6b7280' },
-                    { name: 'Recyclables', capacity: 45, fill: '#3b82f6' },
-                    { name: 'Compost', capacity: 30, fill: '#10b981' },
+                    { name: 'Trash', fillLevel: 82, fill: '#6b7280' },
+                    { name: 'Recyclables', fillLevel: 45, fill: '#3b82f6' },
+                    { name: 'Compost', fillLevel: 30, fill: '#10b981' },
                 ]);
             } finally {
                 setIsLoading(false);
@@ -189,7 +191,7 @@ export default function CapacityPage() {
                                         >
                                             <CartesianGrid strokeDasharray="3 3" />
                                             <XAxis dataKey="name" />
-                                            <YAxis label={{ value: 'Capacity %', angle: -90, position: 'insideLeft' }} domain={[0, 100]} />
+                                            <YAxis label={{ value: 'Fill Level %', angle: -90, position: 'insideLeft' }} domain={[0, 100]} />
                                             <Tooltip
                                                 formatter={(value, name, props) => [`${value}%`, 'Fill Level']}
                                                 labelFormatter={(label) => {
@@ -198,7 +200,7 @@ export default function CapacityPage() {
                                             />
                                             <Legend />
                                             <Bar
-                                                dataKey="capacity"
+                                                dataKey="fillLevel"
                                                 name="Fill Level"
                                             >
                                                 {binData.map((entry, index) => (
@@ -226,13 +228,13 @@ export default function CapacityPage() {
                                                 <div
                                                     className="h-2.5 rounded-full pz-8"
                                                     style={{
-                                                        width: `${bin.capacity}%`,
+                                                        width: `${bin.fillLevel}%`,
                                                         backgroundColor: bin.fill,
                                                     }}
                                                 ></div>
                                             </div>
-                                            <span className={`ml-2 ${bin.capacity > 80 ? 'text-red-600 font-semibold' : 'text-gray-700'}`}>
-                                                {bin.capacity}%
+                                            <span className={`ml-2 ${bin.fillLevel > 80 ? 'text-red-600 font-semibold' : 'text-gray-700'}`}>
+                                                {bin.fillLevel.toFixed(1)}%
                                             </span>
                                         </div>
                                     ))}

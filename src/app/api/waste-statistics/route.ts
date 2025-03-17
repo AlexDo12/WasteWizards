@@ -9,6 +9,7 @@ export async function GET(request: Request) {
     // Get URL parameters
     const { searchParams } = new URL(request.url);
     const timeRange = searchParams.get('timeRange') || 'week';
+    const trashcan = searchParams.get('trashcan') || '1'; // Default to trashcan 1 if not specified
 
     try {
         // Define timeframe based on the requested range
@@ -16,24 +17,27 @@ export async function GET(request: Request) {
 
         if (timeRange === 'week') {
             query = sql`
-        SELECT id, waste_type, bin_number, timestamp 
+        SELECT id, waste_type, bin_number, time, username, trashcan 
         FROM waste_items 
-        WHERE timestamp >= NOW() - INTERVAL '7 days'
-        ORDER BY timestamp DESC
+        WHERE time >= NOW() - INTERVAL '7 days'
+        AND trashcan = ${parseInt(trashcan)}
+        ORDER BY time DESC
       `;
         } else if (timeRange === 'month') {
             query = sql`
-        SELECT id, waste_type, bin_number, timestamp 
+        SELECT id, waste_type, bin_number, time, username, trashcan 
         FROM waste_items 
-        WHERE timestamp >= NOW() - INTERVAL '30 days'
-        ORDER BY timestamp DESC
+        WHERE time >= NOW() - INTERVAL '30 days'
+        AND trashcan = ${parseInt(trashcan)}
+        ORDER BY time DESC
       `;
         } else {
-            // All time - no condition needed
+            // All time - just filter by trashcan
             query = sql`
-        SELECT id, waste_type, bin_number, timestamp 
+        SELECT id, waste_type, bin_number, time, username, trashcan 
         FROM waste_items 
-        ORDER BY timestamp DESC
+        WHERE trashcan = ${parseInt(trashcan)}
+        ORDER BY time DESC
       `;
         }
 
@@ -53,26 +57,26 @@ export async function GET(request: Request) {
 // Add a POST endpoint to record new waste items
 export async function POST(request: Request) {
     try {
-        const { waste_type, bin_number } = await request.json();
+        const { waste_type, bin_number, username, trashcan = 1 } = await request.json();
 
         // Validate input
-        if (!waste_type || !bin_number) {
+        if (!waste_type || !bin_number || !username) {
             return NextResponse.json({
-                error: 'Missing required fields'
+                error: 'Missing required fields: waste_type, bin_number, and username are required'
             }, { status: 400 });
         }
 
         // Insert the new waste item
         const result = await sql`
-      INSERT INTO waste_items (waste_type, bin_number)
-      VALUES (${waste_type}, ${bin_number})
-      RETURNING id, timestamp
+      INSERT INTO waste_items (waste_type, bin_number, username, trashcan)
+      VALUES (${waste_type}, ${bin_number}, ${username}, ${trashcan})
+      RETURNING id, time
     `;
 
         return NextResponse.json({
             success: true,
             id: result[0].id,
-            timestamp: result[0].timestamp
+            time: result[0].time
         });
     } catch (error) {
         console.error('Database error:', error);

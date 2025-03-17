@@ -19,7 +19,9 @@ interface WasteItem {
     id: number;
     waste_type: string;
     bin_number: number;
-    timestamp: string;
+    time: string; // Changed from timestamp to time
+    username: string;
+    trashcan: number;
 }
 
 interface WasteTypeTotal {
@@ -74,7 +76,8 @@ export default function StatisticsPage() {
         const fetchWasteItems = async () => {
             setIsLoading(true);
             try {
-                const response = await fetch(`/api/waste-statistics?timeRange=${timeRange}`);
+                // Hardcode trashcan=1 in the API call
+                const response = await fetch(`/api/waste-statistics?timeRange=${timeRange}&trashcan=1`);
 
                 if (!response.ok) {
                     const errorText = await response.text();
@@ -157,7 +160,7 @@ export default function StatisticsPage() {
 
         items.forEach(item => {
             // Format date as YYYY-MM-DD
-            const date = new Date(item.timestamp).toISOString().split('T')[0];
+            const date = new Date(item.time).toISOString().split('T')[0]; // Changed from timestamp to time
 
             // Count total items per day
             dailyData[date] = (dailyData[date] || 0) + 1;
@@ -489,7 +492,8 @@ export default function StatisticsPage() {
                                             <tr>
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bin</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Timestamp</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-gray-200">
@@ -507,8 +511,11 @@ export default function StatisticsPage() {
                                                     <td className="px-6 py-4 whitespace-nowrap">
                                                         Bin {item.bin_number}
                                                     </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        {item.username}
+                                                    </td>
                                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                        {new Date(item.timestamp).toLocaleString()}
+                                                        {new Date(item.time).toLocaleString()}
                                                     </td>
                                                 </tr>
                                             ))}
