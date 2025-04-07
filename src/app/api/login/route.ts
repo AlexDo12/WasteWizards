@@ -4,8 +4,11 @@ import { cookies } from 'next/headers';
 import { serialize } from 'cookie';
 
 // Create SQL client
-const sql = neon(process.env.DATABASE_URL);
-
+if (!process.env.DATABASE_URL) {
+    throw new Error('DATABASE_URL environment variable is not defined');
+  }
+  const sql = neon(process.env.DATABASE_URL);
+  
 export async function POST(request: Request) {
     try {
         const { username, password } = await request.json();
