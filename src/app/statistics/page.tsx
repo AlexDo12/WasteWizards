@@ -49,7 +49,7 @@ const wasteTypeColors: Record<string, string> = {
     'glass': '#83c6ae',
     'metal': '#83B8C6',
     'recyclables': '#829fab',
-    'electronics': '#8389c6'
+    'cardboard': '#8389c6'
 };
 
 // Format names for display

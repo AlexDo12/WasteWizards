@@ -43,7 +43,7 @@ const wasteTypes: WasteType[] = [
     { id: "glass", name: "Glass", color: "#83c6ae", icon: "🍷" },
     { id: "metal", name: "Metal", color: "#83B8C6", icon: "🥫" },
     { id: "compost", name: "Compost", color: "#8cc683", icon: "🍃" },
-    { id: "electronics", name: "E-Waste", color: "#8389c6", icon: "📱" },
+    { id: "cardboard", name: "Cardboard", color: "#8389c6", icon: "📦" },
 ];
 
 export default function ConfigurePage() {
