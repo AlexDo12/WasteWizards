@@ -155,16 +155,14 @@ export default function ConfigurePage() {
         setHasChanges(configChanged);
     }, [bins, initialBins]);
 
-    // Determine if a bin is configurable (first bin is not configurable, others only if fill_level < 5.00)
+    // Determine if a bin is configurable (only first bin is not configurable)
     const isBinConfigurable = (bin: Bin) => {
-        if (bin.id === 1) return false; // First bin is never configurable
-        return bin.fillLevel < 5.00; // Other bins only if fill_level is below 5.00
+        return bin.id !== 1; // First bin is never configurable, all others are
     };
 
     // Get message for bin status
     const getBinStatusMessage = (bin: Bin) => {
         if (bin.id === 1) return "Primary bin (not configurable)";
-        if (bin.fillLevel >= 5.00) return "Please empty bin before reconfiguring";
         return "Click to configure";
     };
 
@@ -291,9 +289,7 @@ export default function ConfigurePage() {
                                                 <div className="mt-2 text-center">
                                                     <span className={`inline-block text-xs py-1 px-3 rounded-full font-medium ${bin.id === 1
                                                         ? 'bg-blue-100 text-blue-800 border border-blue-200'
-                                                        : bin.fillLevel >= 5.00
-                                                            ? 'bg-red-100 text-red-700 border border-red-200'
-                                                            : 'bg-green-100 text-green-700 border border-green-200'
+                                                        : 'bg-green-100 text-green-700 border border-green-200'
                                                         }`}>
                                                         {statusMessage}
                                                     </span>
@@ -324,7 +320,7 @@ export default function ConfigurePage() {
                                     </p>
                                 ) : (
                                     <p className="text-lg font-light text-blue-800">
-                                        Bin 1 is not configurable. Other bins can be configured if their fill level is below 5.00%.
+                                        Bin 1 is not configurable. All other bins can be configured regardless of fill level.
                                     </p>
                                 )}
                             </div>
